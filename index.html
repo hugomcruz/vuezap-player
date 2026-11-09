@@ -33,9 +33,9 @@
         videoId: id, width: '100%', height: '100%',
         playerVars: { autoplay: 1, controls: 0, rel: 0, modestbranding: 1, playsinline: 1, disablekb: 1, iv_load_policy: 3, origin: location.origin },
         events: {
-          onReady: function () { try { player.playVideo(); } catch (e) {} setTimeout(function () { if (!started) say('Press OK to play'); }, 4000); },
+          onReady: function () { try { player.playVideo(); } catch (e) {} setTimeout(function () { var q = -9; try { q = player.getPlayerState(); } catch (x) {} if (!started && (q === -1 || q === 5)) say('Press OK to play'); }, 4000); },
           onStateChange: function (e) {
-            if (e.data === 1) { started = true; say(''); }           // playing
+            if (e.data === 1 || e.data === 3) { started = true; say(''); }           // playing
             else if (e.data === 2) say('Paused');
             else if (e.data === 0) { say('The trailer has ended — press Back'); tell({ ended: 1 }); }
           },
