@@ -6,6 +6,7 @@
 <title>VueZap trailer player</title>
 <style>
   html, body { margin: 0; height: 100%; background: #000; overflow: hidden; font-family: Arial, Helvetica, sans-serif; color: #fff; }
+  iframe { pointer-events: none; }
   #p { position: absolute; inset: 0; width: 100%; height: 100%; }
   #msg { position: absolute; left: 0; right: 0; bottom: 6%; text-align: center; font-size: 2.2vw; text-shadow: 0 0 8px #000; pointer-events: none; }
   #dbg { position: absolute; left: 3%; right: 3%; top: 3%; font-size: 1.3vw; color: #9aa4b2; word-break: break-all; }
@@ -74,6 +75,11 @@
     } catch (x) { /* ignore */ }
   });
   window.addEventListener('load', function () { window.focus(); document.body.tabIndex = 0; document.body.focus(); });
+  // keep the keyboard focus on this page (not inside YouTube's frame) so Back / OK / arrows always reach the handler above
+  setInterval(function () {
+    var a = document.activeElement;
+    if (a && a.tagName === 'IFRAME') { window.focus(); document.body.tabIndex = 0; document.body.focus(); }
+  }, 500);
 </script>
 </body>
 </html>
