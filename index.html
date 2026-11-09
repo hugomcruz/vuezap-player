@@ -3,27 +3,72 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="referrer" content="strict-origin-when-cross-origin">
 <title>VueZap trailer player</title>
 <style>
-  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
-  iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; font-family: Arial, Helvetica, sans-serif; color: #fff; }
+  #p { position: absolute; inset: 0; width: 100%; height: 100%; }
+  #msg { position: absolute; left: 0; right: 0; bottom: 6%; text-align: center; font-size: 2.2vw; text-shadow: 0 0 8px #000; pointer-events: none; }
+  #bar { position: absolute; left: 4%; right: 4%; bottom: 2.5%; height: 5px; background: rgba(255,255,255,.3); border-radius: 3px; }
+  #fill { height: 5px; width: 0; background: #22c55e; border-radius: 3px; }
 </style>
 </head>
 <body>
+<div id="p"></div>
+<div id="msg">Loading trailer…</div>
+<div id="bar"><div id="fill"></div></div>
 <script>
   // Usage: index.html?v=<YouTube video id>
-  // This page only exists so YouTube receives a valid https referrer: the VueZap TV app runs from file:// and
-  // YouTube refuses to play embedded videos that have no referrer (Error 153).
+  // VueZap (a TV app running from file://) cannot embed YouTube directly: YouTube refuses embeds with no https referrer
+  // (Error 153). This page gives YouTube a valid referrer and relays remote keys / errors to the app with postMessage.
   var id = (location.search.match(/[?&]v=([A-Za-z0-9_-]{11})/) || [])[1];
-  if (id) {
-    var f = document.createElement('iframe');
-    f.src = 'https://www.youtube.com/embed/' + id +
-      '?autoplay=1&controls=0&rel=0&modestbranding=1&playsinline=1&disablekb=1&iv_load_policy=3';
-    f.allow = 'autoplay; encrypted-media; picture-in-picture';
-    f.setAttribute('tabindex', '-1');
-    document.body.appendChild(f);
+  var msg = document.getElementById('msg'), fill = document.getElementById('fill'), player = null, started = false;
+  function say(t) { msg.textContent = t; msg.style.display = t ? 'block' : 'none'; }
+  function tell(o) { try { parent.postMessage(Object.assign({ vz: 1 }, o), '*'); } catch (e) { /* standalone */ } }
+  var ERR = { 2: 'invalid video id', 5: 'player error', 100: 'video not found', 101: 'embedding disabled by the owner',
+              150: 'embedding disabled by the owner', 153: 'embed refused (no referrer)' };
+
+  if (!id) say('No trailer'); else {
+    window.onYouTubeIframeAPIReady = function () {
+      player = new YT.Player('p', {
+        videoId: id, width: '100%', height: '100%',
+        playerVars: { autoplay: 1, controls: 0, rel: 0, modestbranding: 1, playsinline: 1, disablekb: 1, iv_load_policy: 3, origin: location.origin },
+        events: {
+          onReady: function () { try { player.playVideo(); } catch (e) {} setTimeout(function () { if (!started) say('Press OK to play'); }, 4000); },
+          onStateChange: function (e) {
+            if (e.data === 1) { started = true; say(''); }           // playing
+            else if (e.data === 2) say('Paused');
+            else if (e.data === 0) { say('The trailer has ended — press Back'); tell({ ended: 1 }); }
+          },
+          onError: function (e) { say('Trailer unavailable: ' + (ERR[e.data] || 'error ' + e.data)); tell({ error: e.data }); }
+        }
+      });
+      setInterval(function () {
+        try { var d = player.getDuration(); if (d) fill.style.width = (player.getCurrentTime() / d * 100) + '%'; } catch (e) {}
+      }, 500);
+    };
+    var s = document.createElement('script');
+    s.src = 'https://www.youtube.com/iframe_api';
+    s.onerror = function () { say('Cannot reach YouTube'); tell({ error: 'network' }); };
+    document.head.appendChild(s);
   }
+
+  // remote control keys (when this page has the focus)
+  document.addEventListener('keydown', function (e) {
+    var k = e.keyCode;
+    if (k === 10009 || k === 27 || k === 8 || k === 413) { e.preventDefault(); tell({ close: 1 }); return; }
+    if (!player || !player.getPlayerState) return;
+    try {
+      if (k === 13 || k === 10252 || k === 415 || k === 19) {
+        e.preventDefault();
+        var st = player.getPlayerState();
+        if (st === 1) player.pauseVideo(); else player.playVideo();
+      } else if (k === 37 || k === 39) {
+        e.preventDefault();
+        player.seekTo(Math.max(0, player.getCurrentTime() + (k === 37 ? -10 : 10)), true);
+      }
+    } catch (x) { /* ignore */ }
+  });
+  window.addEventListener('load', function () { window.focus(); document.body.tabIndex = 0; document.body.focus(); });
 </script>
 </body>
 </html>
