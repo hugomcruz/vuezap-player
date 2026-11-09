@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<title>VueZap trailer player</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+  iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+</style>
+</head>
+<body>
+<script>
+  // Usage: index.html?v=<YouTube video id>
+  // This page only exists so YouTube receives a valid https referrer: the VueZap TV app runs from file:// and
+  // YouTube refuses to play embedded videos that have no referrer (Error 153).
+  var id = (location.search.match(/[?&]v=([A-Za-z0-9_-]{11})/) || [])[1];
+  if (id) {
+    var f = document.createElement('iframe');
+    f.src = 'https://www.youtube.com/embed/' + id +
+      '?autoplay=1&controls=0&rel=0&modestbranding=1&playsinline=1&disablekb=1&iv_load_policy=3';
+    f.allow = 'autoplay; encrypted-media; picture-in-picture';
+    f.setAttribute('tabindex', '-1');
+    document.body.appendChild(f);
+  }
+</script>
+</body>
+</html>
