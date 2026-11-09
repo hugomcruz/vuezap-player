@@ -8,6 +8,7 @@
   html, body { margin: 0; height: 100%; background: #000; overflow: hidden; font-family: Arial, Helvetica, sans-serif; color: #fff; }
   #p { position: absolute; inset: 0; width: 100%; height: 100%; }
   #msg { position: absolute; left: 0; right: 0; bottom: 6%; text-align: center; font-size: 2.2vw; text-shadow: 0 0 8px #000; pointer-events: none; }
+  #dbg { position: absolute; left: 3%; right: 3%; top: 3%; font-size: 1.3vw; color: #9aa4b2; word-break: break-all; }
   #bar { position: absolute; left: 4%; right: 4%; bottom: 2.5%; height: 5px; background: rgba(255,255,255,.3); border-radius: 3px; }
   #fill { height: 5px; width: 0; background: #22c55e; border-radius: 3px; }
 </style>
@@ -15,6 +16,7 @@
 <body>
 <div id="p"></div>
 <div id="msg">Loading trailer…</div>
+<div id="dbg"></div>
 <div id="bar"><div id="fill"></div></div>
 <script>
   // Usage: index.html?v=<YouTube video id>
@@ -22,11 +24,14 @@
   // (Error 153). This page gives YouTube a valid referrer and relays remote keys / errors to the app with postMessage.
   var id = (location.search.match(/[?&]v=([A-Za-z0-9_-]{11})/) || [])[1];
   var msg = document.getElementById('msg'), fill = document.getElementById('fill'), player = null, started = false;
-  function say(t) { msg.textContent = t; msg.style.display = t ? 'block' : 'none'; }
+  function say(t) { msg.textContent = t; msg.style.display = t ? 'block' : 'none'; if (t && /unavailable|error|Cannot|refused/i.test(t)) { var d = document.getElementById('dbg'); if (d) d.textContent = navigator.userAgent; } }
   function tell(o) { try { parent.postMessage(Object.assign({ vz: 1 }, o), '*'); } catch (e) { /* standalone */ } }
   var ERR = { 2: 'invalid video id', 5: 'player error', 100: 'video not found', 101: 'embedding disabled by the owner',
               150: 'embedding disabled by the owner', 153: 'embed refused (no referrer)' };
 
+  tell({ ready: 1 });
+  var dbg = document.getElementById('dbg');
+  window.onerror = function (m) { say('Script error: ' + m); };
   if (!id) say('No trailer'); else {
     window.onYouTubeIframeAPIReady = function () {
       player = new YT.Player('p', {
