@@ -58,7 +58,7 @@
     window.onYouTubeIframeAPIReady = function () {
       player = new YT.Player('p', {
         videoId: id, width: '100%', height: '100%',
-        playerVars: { autoplay: 1, controls: 0, rel: 0, modestbranding: 1, playsinline: 1, disablekb: 1, iv_load_policy: 3, cc_load_policy: 0, hl: 'en', origin: location.origin },
+        playerVars: { autoplay: 1, controls: 1, rel: 0, modestbranding: 1, playsinline: 1, iv_load_policy: 3, cc_load_policy: 0, hl: 'en', origin: location.origin },
         events: {
           onReady: function () { noCC(); try { player.playVideo(); } catch (e) {} setTimeout(function () { var q = -9; try { q = player.getPlayerState(); } catch (x) {} if (!started && (q === -1 || q === 5)) say('Press OK to play'); }, 4000); },
           onStateChange: function (e) {
