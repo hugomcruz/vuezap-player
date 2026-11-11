@@ -7,6 +7,8 @@
 <style>
   html, body { margin: 0; height: 100%; background: #000; overflow: hidden; font-family: Arial, Helvetica, sans-serif; color: #fff; }
   iframe { pointer-events: none; }
+  body.skip iframe { pointer-events: auto; }
+  #hint { position: absolute; right: 3%; top: 3%; font-size: 1.6vw; background: rgba(0,0,0,.6); padding: .4em .8em; border-radius: .4em; display: none; }
   #p { position: absolute; inset: 0; width: 100%; height: 100%; }
   #msg { position: absolute; left: 0; right: 0; bottom: 6%; text-align: center; font-size: 2.2vw; text-shadow: 0 0 8px #000; pointer-events: none; }
   #dbg { position: absolute; left: 3%; right: 3%; top: 3%; font-size: 1.3vw; color: #9aa4b2; word-break: break-all; }
@@ -18,6 +20,7 @@
 <div id="p"></div>
 <div id="msg">Loading trailer…</div>
 <div id="dbg"></div>
+<div id="hint">&#9660; Skip ad</div>
 <div id="bar"><div id="fill"></div></div>
 <script>
   // Usage: index.html?v=<YouTube video id>
@@ -30,6 +33,24 @@
   var ERR = { 2: 'invalid video id', 5: 'player error', 100: 'video not found', 101: 'embedding disabled by the owner',
               150: 'embedding disabled by the owner', 153: 'embed refused (no referrer)' };
 
+  // subtitles / closed captions always off
+  function noCC() { try { player.unloadModule('captions'); player.unloadModule('cc'); player.setOption('captions', 'track', {}); } catch (e) {} }
+
+  // Ads: YouTube's Skip button lives inside its own frame, which this page cannot click. Pressing Down hands the keyboard focus to
+  // that frame for a few seconds, so the remote can reach the Skip button itself (OK on it); focus then comes back to this page.
+  var skipTimer, hintTimer, t0 = Date.now();
+  function showHint(on) { document.getElementById('hint').style.display = on ? 'block' : 'none'; }
+  function skipMode() {
+    var f = document.querySelector('iframe');
+    if (!f) return;
+    document.body.classList.add('skip');
+    showHint(false);
+    try { f.focus(); } catch (e) {}
+    clearTimeout(skipTimer);
+    skipTimer = setTimeout(function () { document.body.classList.remove('skip'); window.focus(); document.body.focus(); }, 8000);
+  }
+  hintTimer = setInterval(function () { showHint(Date.now() - t0 < 45000 && started && !document.body.classList.contains('skip')); if (Date.now() - t0 > 45000) clearInterval(hintTimer); }, 1000);
+
   tell({ ready: 1 });
   var dbg = document.getElementById('dbg');
   window.onerror = function (m) { say('Script error: ' + m); };
@@ -37,11 +58,11 @@
     window.onYouTubeIframeAPIReady = function () {
       player = new YT.Player('p', {
         videoId: id, width: '100%', height: '100%',
-        playerVars: { autoplay: 1, controls: 0, rel: 0, modestbranding: 1, playsinline: 1, disablekb: 1, iv_load_policy: 3, origin: location.origin },
+        playerVars: { autoplay: 1, controls: 0, rel: 0, modestbranding: 1, playsinline: 1, disablekb: 1, iv_load_policy: 3, cc_load_policy: 0, hl: 'en', origin: location.origin },
         events: {
-          onReady: function () { try { player.playVideo(); } catch (e) {} setTimeout(function () { var q = -9; try { q = player.getPlayerState(); } catch (x) {} if (!started && (q === -1 || q === 5)) say('Press OK to play'); }, 4000); },
+          onReady: function () { noCC(); try { player.playVideo(); } catch (e) {} setTimeout(function () { var q = -9; try { q = player.getPlayerState(); } catch (x) {} if (!started && (q === -1 || q === 5)) say('Press OK to play'); }, 4000); },
           onStateChange: function (e) {
-            if (e.data === 1 || e.data === 3) { started = true; say(''); }           // playing
+            if (e.data === 1 || e.data === 3) { started = true; say(''); noCC(); }           // playing
             else if (e.data === 2) say('Paused');
             else if (e.data === 0) { say('The trailer has ended — press Back'); tell({ ended: 1 }); }
           },
@@ -68,6 +89,9 @@
         e.preventDefault();
         var st = player.getPlayerState();
         if (st === 1) player.pauseVideo(); else player.playVideo();
+      } else if (k === 40) {
+        e.preventDefault();
+        skipMode();
       } else if (k === 37 || k === 39) {
         e.preventDefault();
         player.seekTo(Math.max(0, player.getCurrentTime() + (k === 37 ? -10 : 10)), true);
@@ -78,7 +102,7 @@
   // keep the keyboard focus on this page (not inside YouTube's frame) so Back / OK / arrows always reach the handler above
   setInterval(function () {
     var a = document.activeElement;
-    if (a && a.tagName === 'IFRAME') { window.focus(); document.body.tabIndex = 0; document.body.focus(); }
+    if (a && a.tagName === 'IFRAME' && !document.body.classList.contains('skip')) { window.focus(); document.body.tabIndex = 0; document.body.focus(); }
   }, 500);
 </script>
 </body>
